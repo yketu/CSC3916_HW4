@@ -1,3 +1,4 @@
+
 var express = require('express');
 var bodyParser = require('body-parser');
 var passport = require('passport');
@@ -5,20 +6,19 @@ var authController = require('./auth');
 var authJwtController = require('./auth_jwt');
 var jwt = require('jsonwebtoken');
 var cors = require('cors');
+
 var User = require('./Users');
 var Movie = require('./Movies');
+require('./Reviews'); // register schema
 var mongoose = require('mongoose');
-//require('./Reviews'); // register schema
-//var Review = mongoose.model('Review');
+var Review = mongoose.model('Review');
 var Review = require('./Reviews');
 
 var app = express();
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-
 app.use(passport.initialize());
-
 var router = express.Router();
 
 function getJSONObjectForMovieRequirement(req) {
@@ -61,27 +61,30 @@ router.post('/signup', function(req, res) {
     }
 });
 
-router.post('/signin', function (req, res) {
-    var userNew = new User();
-    userNew.username = req.body.username;
-    userNew.password = req.body.password;
+router.post('/signin', function(req, res) {
 
-    User.findOne({ username: userNew.username }).select('name username password').exec(function(err, user) {
-        if (err) {
-            res.send(err);
-        }
+    User.findOne({ username: req.body.username })
+        .select('name username password')
+        .exec(function(err, user) {
 
-        user.comparePassword(userNew.password, function(isMatch) {
-            if (isMatch) {
-                var userToken = { id: user.id, username: user.username };
-                var token = jwt.sign(userToken, process.env.SECRET_KEY);
-                res.json ({success: true, token: 'JWT ' + token});
+            if (err) return res.status(500).send(err);
+
+            if (!user) {
+                return res.status(401).json({ success: false, msg: 'Authentication failed. User not found.' });
             }
-            else {
-                res.status(401).send({success: false, msg: 'Authentication failed.'});
-            }
-        })
-    })
+
+            user.comparePassword(req.body.password, function(isMatch) {
+
+                if (!isMatch) {
+                    return res.status(401).json({ success: false, msg: 'Authentication failed. Incorrect password.' });
+                }
+
+                var userToken = { id: user._id, username: user.username };
+                var token = jwt.sign(userToken, process.env.SECRET_KEY, { expiresIn: '1h' });
+
+                res.json({ success: true, token: 'JWT ' + token });
+            });
+        });
 });
 
 router.post('/reviews', authJwtController.isAuthenticated, function(req, res) {
@@ -111,12 +114,53 @@ router.post('/reviews', authJwtController.isAuthenticated, function(req, res) {
         });
     });
 });
+
+router.get('/movies/:id', authJwtController.isAuthenticated, function(req, res) {
+
+    var movieId = req.params.id;
+
+    if (req.query.reviews === 'true') {
+
+        Movie.aggregate([
+            { $match: { _id: new mongoose.Types.ObjectId(movieId) } },
+            {
+                $lookup: {
+                    from: "reviews",
+                    localField: "_id",
+                    foreignField: "movieId",
+                    as: "reviews"
+                }
+            }
+        ]).exec(function(err, result) {
+
+            if (err) return res.status(500).send(err);
+
+            if (!result || result.length === 0) {
+                return res.status(404).json({ message: 'Movie not found' });
+            }
+
+            res.json(result[0]);
+        });
+
+    } else {
+
+        Movie.findById(movieId, function(err, movie) {
+
+            if (err) return res.status(500).send(err);
+
+            if (!movie) {
+                return res.status(404).json({ message: 'Movie not found' });
+            }
+
+            res.json(movie);
+        });
+    }
+});
 router.post('/reviews', authJwtController.isAuthenticated, function(req, res) {
 
     Movie.findById(req.body.movieId, function(err, movie) {
-        if (err) {
-            return res.status(500).send(err);
-        }
+
+        if (err) return res.status(500).send(err);
 
         if (!movie) {
             return res.status(404).json({ message: 'Movie not found' });
@@ -130,16 +174,18 @@ router.post('/reviews', authJwtController.isAuthenticated, function(req, res) {
         });
 
         review.save(function(err) {
-            if (err) {
-                return res.status(400).send(err);
-            }
+
+            if (err) return res.status(400).send(err);
 
             res.json({ message: 'Review created!' });
         });
     });
 });
 app.use('/', router);
-app.listen(process.env.PORT || 8080);
+var PORT = process.env.PORT || 8080;
+app.listen(PORT, function() {
+    console.log("Server running on port " + PORT);
+});
 module.exports = app; // for testing only
 
 
