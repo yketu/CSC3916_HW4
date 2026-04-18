@@ -9,10 +9,10 @@ var cors = require('cors');
 
 var User = require('./Users');
 var Movie = require('./Movies');
-require('./Reviews'); // register schema
+//require('./Reviews'); // register schema
 var mongoose = require('mongoose');
-var Review = mongoose.model('Review');
-//var Review = require('./Reviews');
+//var Review = mongoose.model('Review');
+var Review = require('./Reviews');
 
 var app = express();
 app.use(cors());
