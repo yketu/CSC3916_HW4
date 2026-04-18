@@ -12,7 +12,7 @@ var Movie = require('./Movies');
 require('./Reviews'); // register schema
 var mongoose = require('mongoose');
 var Review = mongoose.model('Review');
-var Review = require('./Reviews');
+//var Review = require('./Reviews');
 
 var app = express();
 app.use(cors());
@@ -156,31 +156,7 @@ router.get('/movies/:id', authJwtController.isAuthenticated, function(req, res) 
         });
     }
 });
-router.post('/reviews', authJwtController.isAuthenticated, function(req, res) {
 
-    Movie.findById(req.body.movieId, function(err, movie) {
-
-        if (err) return res.status(500).send(err);
-
-        if (!movie) {
-            return res.status(404).json({ message: 'Movie not found' });
-        }
-
-        var review = new Review({
-            movieId: req.body.movieId,
-            username: req.body.username,
-            review: req.body.review,
-            rating: req.body.rating
-        });
-
-        review.save(function(err) {
-
-            if (err) return res.status(400).send(err);
-
-            res.json({ message: 'Review created!' });
-        });
-    });
-});
 app.use('/', router);
 var PORT = process.env.PORT || 8080;
 app.listen(PORT, function() {
