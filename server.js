@@ -95,30 +95,28 @@ router.get('/movies', authJwtController.isAuthenticated, function(req, res) {
         res.json(movies);
     });
 });
-router.put('/movies/:id', authJwtController.isAuthenticated, function(req, res) {
+router.put('/movies/:title', authJwtController.isAuthenticated, function(req, res) {
 
-    Movie.findById(req.params.id, function(err, movie) {
+    Movie.findOneAndUpdate(
+        { title: req.params.title },   // ✅ IMPORTANT FIX
+        req.body,
+        { new: true },
+        function(err, movie) {
 
-        if (err) return res.status(500).send(err);
-
-        if (!movie) {
-            return res.status(404).json({ message: 'Movie not found' });
-        }
-
-        // update fields
-        if (req.body.title) movie.title = req.body.title;
-        if (req.body.releaseDate) movie.releaseDate = req.body.releaseDate;
-        if (req.body.genre) movie.genre = req.body.genre;
-        if (req.body.actors) movie.actors = req.body.actors;
-
-        movie.save(function(err) {
             if (err) {
-                return res.status(400).json({ message: err.message });
+                return res.status(500).send(err);
             }
 
-            res.json({ message: 'Movie updated!' });
-        });
-    });
+            if (!movie) {
+                return res.status(404).json({ message: 'Movie not found' });
+            }
+
+            res.json({
+                message: 'Movie updated successfully',
+                movie
+            });
+        }
+    );
 });
 
 router.post('/movies', authJwtController.isAuthenticated, function(req, res) {
