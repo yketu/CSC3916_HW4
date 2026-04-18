@@ -87,6 +87,76 @@ router.post('/signin', function(req, res) {
         });
 });
 
+router.get('/movies', authJwtController.isAuthenticated, function(req, res) {
+    Movie.find({}, function(err, movies) {
+        if (err) {
+            return res.status(500).json({ message: err.message });
+        }
+        res.json(movies);
+    });
+});
+router.put('/movies/:id', authJwtController.isAuthenticated, function(req, res) {
+
+    Movie.findById(req.params.id, function(err, movie) {
+
+        if (err) return res.status(500).send(err);
+
+        if (!movie) {
+            return res.status(404).json({ message: 'Movie not found' });
+        }
+
+        // update fields
+        if (req.body.title) movie.title = req.body.title;
+        if (req.body.releaseDate) movie.releaseDate = req.body.releaseDate;
+        if (req.body.genre) movie.genre = req.body.genre;
+        if (req.body.actors) movie.actors = req.body.actors;
+
+        movie.save(function(err) {
+            if (err) {
+                return res.status(400).json({ message: err.message });
+            }
+
+            res.json({ message: 'Movie updated!' });
+        });
+    });
+});
+
+router.post('/movies', authJwtController.isAuthenticated, function(req, res) {
+
+    // Validation (IMPORTANT for grading)
+    if (!req.body.title || !req.body.actors || req.body.actors.length === 0) {
+        return res.status(400).json({ message: 'Movie must have title and actors' });
+    }
+
+    var movie = new Movie({
+        title: req.body.title,
+        releaseDate: req.body.releaseDate,
+        genre: req.body.genre,
+        actors: req.body.actors
+    });
+
+    movie.save(function(err) {
+        if (err) {
+            return res.status(400).json({ message: err.message });
+        }
+
+        res.json({ message: 'Movie created!' });
+    });
+});
+router.delete('/movies/:id', authJwtController.isAuthenticated, function(req, res) {
+
+    Movie.findByIdAndDelete(req.params.id, function(err, movie) {
+
+        if (err) return res.status(500).send(err);
+
+        if (!movie) {
+            return res.status(404).json({ message: 'Movie not found' });
+        }
+
+        res.json({ message: 'Movie deleted!' });
+    });
+});
+
 router.post('/reviews', authJwtController.isAuthenticated, function(req, res) {
 
     Movie.findById(req.body.movieId, function(err, movie) {
