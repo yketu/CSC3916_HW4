@@ -88,17 +88,34 @@ router.post('/signin', function(req, res) {
 });
 
 router.get('/movies', authJwtController.isAuthenticated, function(req, res) {
-    Movie.find({}, function(err, movies) {
-        if (err) {
-            return res.status(500).json({ message: err.message });
+    const aggregate = [
+        {
+            $lookup: {
+                from: "reviews",
+                localField: "_id",
+                foreignField: "movieId",
+                as: "movieReviews"
+            }
+        },
+        {
+            $addFields: {
+                avgRating: { $avg: "$movieReviews.rating" }
+            }
+        },
+        {
+            $sort: { avgRating: -1 }
         }
+    ];
+    
+    Movie.aggregate(aggregate).exec(function(err, movies) {
+        if (err) return res.status(500).json({ message: err.message });
         res.json(movies);
     });
 });
 router.put('/movies/:title', authJwtController.isAuthenticated, function(req, res) {
 
     Movie.findOneAndUpdate(
-        { title: req.params.title },   // ✅ IMPORTANT FIX
+        { title: req.params.title },   
         req.body,
         { new: true },
         function(err, movie) {
@@ -168,7 +185,7 @@ router.post('/reviews', authJwtController.isAuthenticated, function(req, res) {
 
         var review = new Review({
             movieId: req.body.movieId,
-            username: req.body.username,
+            username: req.user.username,
             review: req.body.review,
             rating: req.body.rating
         });
@@ -184,45 +201,34 @@ router.post('/reviews', authJwtController.isAuthenticated, function(req, res) {
 });
 
 router.get('/movies/:id', authJwtController.isAuthenticated, function(req, res) {
-
     var movieId = req.params.id;
-
-    if (req.query.reviews === 'true') {
-
-        Movie.aggregate([
-            { $match: { _id: new mongoose.Types.ObjectId(movieId) } },
-            {
-                $lookup: {
-                    from: "reviews",
-                    localField: "_id",
-                    foreignField: "movieId",
-                    as: "reviews"
-                }
+    
+    const aggregate = [
+        {
+            $match: { _id: new mongoose.Types.ObjectId(movieId) }
+        },
+        {
+            $lookup: {
+                from: "reviews",
+                localField: "_id",
+                foreignField: "movieId",
+                as: "movieReviews"
             }
-        ]).exec(function(err, result) {
-
-            if (err) return res.status(500).send(err);
-
-            if (!result || result.length === 0) {
-                return res.status(404).json({ message: 'Movie not found' });
+        },
+        {
+            $addFields: {
+                avgRating: { $avg: "$movieReviews.rating" }
             }
-
-            res.json(result[0]);
-        });
-
-    } else {
-
-        Movie.findById(movieId, function(err, movie) {
-
-            if (err) return res.status(500).send(err);
-
-            if (!movie) {
-                return res.status(404).json({ message: 'Movie not found' });
-            }
-
-            res.json(movie);
-        });
-    }
+        }
+    ];
+    
+    Movie.aggregate(aggregate).exec(function(err, result) {
+        if (err) return res.status(500).json({ message: err.message });
+        if (!result || result.length === 0) {
+            return res.status(404).json({ message: 'Movie not found' });
+        }
+        res.json(result[0]);
+    });
 });
 
 app.use('/', router);
