@@ -94,7 +94,7 @@ router.get('/movies', authJwtController.isAuthenticated, function(req, res) {
                 from: "reviews",
                 localField: "_id",
                 foreignField: "movieId",
-                as: "movieReviews"
+                as: "reviews"
             }
         },
         {
@@ -212,12 +212,12 @@ router.get('/movies/:id', authJwtController.isAuthenticated, function(req, res) 
                 from: "reviews",
                 localField: "_id",
                 foreignField: "movieId",
-                as: "movieReviews"
+                as: "reviews"
             }
         },
         {
             $addFields: {
-                avgRating: { $avg: "$movieReviews.rating" }
+                avgRating: { $avg: "$reviews.rating" }
             }
         }
     ];
