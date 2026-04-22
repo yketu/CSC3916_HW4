@@ -99,7 +99,7 @@ router.get('/movies', authJwtController.isAuthenticated, function(req, res) {
         },
         {
             $addFields: {
-                avgRating: { $avg: "$movieReviews.rating" }
+                avgRating: { $avg: "$reviews.rating" }
             }
         },
         {
