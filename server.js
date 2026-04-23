@@ -231,6 +231,25 @@ router.get('/movies/:id', authJwtController.isAuthenticated, function(req, res) 
     });
 });
 
+router.post('/movies/search', authJwtController.isAuthenticated, function(req, res) {
+    const searchTerm = req.body.searchTerm;
+
+    if (!searchTerm || searchTerm.trim() === '') {
+        return res.status(400).json({ message: 'Search term is required' });
+    }
+
+    Movie.find({
+        $or: [
+            { title: { $regex: searchTerm, $options: 'i' } },
+            { 'actors.actorName': { $regex: searchTerm, $options: 'i' } }
+        ]
+    }).exec(function(err, movies) {
+        if (err) return res.status(500).json({ message: err.message });
+
+        res.json(movies);
+    });
+});
+
 app.use('/', router);
 var PORT = process.env.PORT || 8080;
 app.listen(PORT, function() {
